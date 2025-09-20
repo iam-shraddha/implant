@@ -22,12 +22,12 @@ jobs:
 
     - name: Tag image for ECR
       run: |
-        IMAGE_URI=123456789012.dkr.ecr.us-east-1.amazonaws.com/implant-app:latest
+        IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
         docker tag implant-app:latest $IMAGE_URI
 
     - name: Push to ECR
       run: |
-        IMAGE_URI=123456789012.dkr.ecr.us-east-1.amazonaws.com/implant-app:latest
+        IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
         docker push $IMAGE_URI
 
     - name: Save Docker image as tar
@@ -37,6 +37,6 @@ jobs:
       uses: aws-actions/s3-sync@v2
       with:
         source-dir: .
-        dest-dir: s3://my-bucket/docker-tars/
+        dest-dir: s3://implant-img-bucket/docker-tars/
         aws-region: us-east-1
         include: implant-app.tar
