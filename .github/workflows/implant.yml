@@ -41,13 +41,6 @@ jobs:
       - name: Save Docker image as tar
         run: docker save implant-app:latest -o implant-app.tar
 
-      # Upload the tar file to S3
-      - name: Upload tar to S3
-        uses: aws-actions/s3-sync@v1
-        with:
-          source-dir: .
-          dest-dir: s3://implant-img-bucket/docker-tars/
-          aws-region: ap-south-1
-          include: implant-app.tar
+     
           access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
