@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: implant-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: Hyperminds@2025
+      MYSQL_DATABASE: implant
+    volumes:
+      - ./implant-sql.dump:/docker-entrypoint-initdb.d/implant-sql.dump
+    ports:
+      - "3306:3306"
+
+  implant-app:
+    build: .
+    image: implant-app:latest
+    container_name: implant-app
+    ports:
+      - "8080:8080"
+      - "3000:3000"
+    depends_on:
+      - mysql
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/implant?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Hyperminds@2025
