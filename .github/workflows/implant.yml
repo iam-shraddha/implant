@@ -1,44 +1,61 @@
 name: CI/CD Pipeline
- 
+
 on:
   push:
     branches:
       - main
 
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: implant-repo
+  IMAGE_TAG: latest
+  S3_BUCKET: implant-img-bucket
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      # Checkout the repo
+      # 1. Checkout the repo
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Log in to Amazon ECR using GitHub Secrets
+      # 2. Set up AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Log in to ECR
       - name: Log in to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
-        with:
-          region: ap-south-1
-          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      # Build the multi-stage Docker image
+      # 4. Build Docker image (frontend + backend)
       - name: Build Docker image
-        run: docker build -t implant-app:latest .
-
-      # Tag the image for ECR
-      - name: Tag image for ECR
         run: |
-          IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
-          docker tag implant-app:latest $IMAGE_URI
+          docker build -t implant-app:${{ env.IMAGE_TAG }} .
 
-      # Push Docker image to ECR
-      - name: Push to ECR
+      # 5. Tag image for ECR
+      - name: Tag Docker image for ECR
         run: |
-          IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker tag implant-app:${{ env.IMAGE_TAG }} $IMAGE_URI
+
+      # 6. Push image to ECR
+      - name: Push Docker image to ECR
+        run: |
+          IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           docker push $IMAGE_URI
 
-      # Save Docker image as a tar file
+      # 7. Save Docker image as tar
       - name: Save Docker image as tar
-        run: docker save implant-app:latest -o implant-app.tar
+        run: |
+          docker save implant-app:${{ env.IMAGE_TAG }} -o implant-app.tar
 
-     
+      # 8. Upload tar to S3
+      - name: Upload Docker tar to S3
+        run: |
+          aws s3 cp implant-app.tar s3://${{ env.S3_BUCKET }}/docker-tars/implant-app.tar
+
