@@ -1,42 +1,47 @@
-FROM ubuntu:22.04
+# ----------------------------
+# Stage 1: Build Backend
+# ----------------------------
+FROM gradle:7.6.0-jdk17 AS backend-build
+WORKDIR /app
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    openjdk-17-jdk \
-    curl \
-    npm \
-    mysql-server \
-    supervisor \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Copy only backend source to reduce cache
+COPY backend/build.gradle.kts backend/settings.gradle.kts backend/gradlew backend/gradlew.bat backend/gradle ./ 
+COPY backend/src ./src
 
-# Create app directories
-RUN mkdir -p /app/backend /app/frontend
+RUN chmod +x ./gradlew
+RUN ./gradlew bootJar --no-daemon -x test
 
-# Copy backend JAR
-COPY BE-Hyper--main/BE-Hyper-main/build/libs/myapp.jar /app/backend/myapp.jar
+# ----------------------------
+# Stage 2: Build Frontend
+# ----------------------------
+FROM node:18-alpine AS frontend-build
+WORKDIR /app
 
-# Copy frontend source
-COPY implantweb-main/implantweb-main /app/frontend
+COPY frontend/package*.json ./
+RUN npm install --silent
 
-# Copy supervisord config
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY frontend/ .
+RUN npm run build
 
-# Copy SQL dump
-COPY implant_dump.sql /docker-entrypoint-initdb.d/implant_dump.sql
+# ----------------------------
+# Stage 3: Final Image (Slim)
+# ----------------------------
+FROM openjdk:17-jdk-slim
+WORKDIR /app
 
-WORKDIR /app/frontend
+# Copy backend jar
+COPY --from=backend-build /app/build/libs/*.jar backend.jar
 
-RUN npm install && npm run build
+# Copy frontend build
+COPY --from=frontend-build /app/build frontend/build
 
-EXPOSE 8080 3000 3306
+# Expose ports
+EXPOSE 8080 3000
 
-# MySQL initialisation
-RUN service mysql start && \
-    mysql -e "CREATE DATABASE IF NOT EXISTS implant;" && \
-    mysql implant < /docker-entrypoint-initdb.d/implant_dump.sql && \
-    mysql -e "CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'Hyperminds@2025';" && \
-    mysql -e "GRANT ALL PRIVILEGES ON implant.* TO 'root'@'%';" && \
-    mysql -e "FLUSH PRIVILEGES;"
+# Optional environment variables for MySQL
+ENV SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/implant?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+ENV SPRING_DATASOURCE_USERNAME=root
+ENV SPRING_DATASOURCE_PASSWORD=Hyperminds@2025
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start backend (Spring Boot serves frontend static files)
+ENTRYPOINT ["java", "-jar", "backend.jar"]
