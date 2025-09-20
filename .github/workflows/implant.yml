@@ -43,7 +43,7 @@ jobs:
 
       # Upload the tar file to S3
       - name: Upload tar to S3
-        uses: aws-actions/s3-sync@v2
+        uses: aws-actions/s3-sync@v1
         with:
           source-dir: .
           dest-dir: s3://implant-img-bucket/docker-tars/
