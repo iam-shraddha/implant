@@ -9,34 +9,45 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      # Checkout the repo
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Log in to Amazon ECR
-      uses: aws-actions/amazon-ecr-login@v2
-      with:
-        region: us-east-1
+      # Log in to Amazon ECR using GitHub Secrets
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          region: ap-south-1
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-    - name: Build Docker image
-      run: docker build -t implant-app:latest .
+      # Build the multi-stage Docker image
+      - name: Build Docker image
+        run: docker build -t implant-app:latest .
 
-    - name: Tag image for ECR
-      run: |
-        IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
-        docker tag implant-app:latest $IMAGE_URI
+      # Tag the image for ECR
+      - name: Tag image for ECR
+        run: |
+          IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
+          docker tag implant-app:latest $IMAGE_URI
 
-    - name: Push to ECR
-      run: |
-        IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
-        docker push $IMAGE_URI
+      # Push Docker image to ECR
+      - name: Push to ECR
+        run: |
+          IMAGE_URI=490004626092.dkr.ecr.ap-south-1.amazonaws.com/implant-repo:latest
+          docker push $IMAGE_URI
 
-    - name: Save Docker image as tar
-      run: docker save implant-app:latest -o implant-app.tar
+      # Save Docker image as a tar file
+      - name: Save Docker image as tar
+        run: docker save implant-app:latest -o implant-app.tar
 
-    - name: Upload tar to S3
-      uses: aws-actions/s3-sync@v2
-      with:
-        source-dir: .
-        dest-dir: s3://implant-img-bucket/docker-tars/
-        aws-region: us-east-1
-        include: implant-app.tar
+      # Upload the tar file to S3
+      - name: Upload tar to S3
+        uses: aws-actions/s3-sync@v2
+        with:
+          source-dir: .
+          dest-dir: s3://implant-img-bucket/docker-tars/
+          aws-region: ap-south-1
+          include: implant-app.tar
+          access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
