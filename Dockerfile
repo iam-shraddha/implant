@@ -41,7 +41,7 @@ WORKDIR /app
 COPY --from=backend-build /app/build/libs/myapp.jar myapp.jar
 
 # Copy frontend build
-COPY --from=frontend-build /app/build frontend/build
+COPY --from=frontend-build /app/build app/static
 
 # Expose ports
 EXPOSE 8080 3000
