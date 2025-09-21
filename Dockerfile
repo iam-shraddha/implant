@@ -1,55 +1,45 @@
 # ----------------------------
-# Stage 1: Build Backend
-# ----------------------------
-FROM gradle:7.6.0-jdk17 AS backend-build
-WORKDIR /app
-
-# Copy only backend source to reduce cache
-COPY BE-Hyper--main/BE-Hyper-main/build.gradle.kts ./ 
-COPY BE-Hyper--main/BE-Hyper-main/settings.gradle.kts ./
-COPY BE-Hyper--main/BE-Hyper-main/gradlew ./
-COPY BE-Hyper--main/BE-Hyper-main/gradlew.bat ./
-COPY BE-Hyper--main/BE-Hyper-main/gradle ./gradle
-COPY BE-Hyper--main/BE-Hyper-main/src ./src
-
-RUN chmod +x ./gradlew
-RUN ./gradlew bootJar --no-daemon -x test
-
-# ----------------------------
-# Stage 2: Build Frontend
+# Stage 1: Build Frontend (React)
 # ----------------------------
 FROM node:18-alpine AS frontend-build
-WORKDIR /app
+WORKDIR /frontend
 
-# Copy only package files first for caching
-COPY implantweb-main/implantweb-main/package.json ./ 
-COPY implantweb-main/implantweb-main/package-lock.json ./
-
+COPY implantweb-main/implantweb-main/package*.json ./
 RUN npm install --silent
 
-# Copy full frontend repo and build
 COPY implantweb-main/implantweb-main/ ./
 RUN npm run build
 
 # ----------------------------
-# Stage 3: Final Image (Slim)
+# Stage 2: Build Backend (Spring Boot)
+# ----------------------------
+FROM gradle:7.6.0-jdk17 AS backend-build
+WORKDIR /backend
+
+# Copy backend project
+COPY BE-Hyper--main/BE-Hyper-main/ ./
+
+# Copy built React into Spring Boot’s static resources
+RUN mkdir -p src/main/resources/static \
+ && cp -r /frontend/build/* src/main/resources/static/
+
+# Build Spring Boot JAR (includes React)
+RUN chmod +x gradlew && ./gradlew bootJar --no-daemon -x test
+
+# ----------------------------
+# Stage 3: Final Image
 # ----------------------------
 FROM openjdk:17-jdk-slim
 WORKDIR /app
 
-# Copy backend JAR
-COPY --from=backend-build /app/build/libs/myapp.jar myapp.jar
+COPY --from=backend-build /backend/build/libs/*.jar myapp.jar
 
-# Copy frontend build
-COPY --from=frontend-build /app/build app/static
+EXPOSE 8080
 
-# Expose ports
-EXPOSE 8080 3000
+# MySQL connection settings
+ENV SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/implant?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
+    SPRING_DATASOURCE_USERNAME=root \
+    SPRING_DATASOURCE_PASSWORD=Hyperminds@2025 \
+    SERVER_ADDRESS=0.0.0.0
 
-# Environment variables for MySQL
-ENV SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/implant?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-ENV SPRING_DATASOURCE_USERNAME=root
-ENV SPRING_DATASOURCE_PASSWORD=Hyperminds@2025
-
-# Start backend (Spring Boot serves frontend static files)
 ENTRYPOINT ["java", "-jar", "myapp.jar"]
