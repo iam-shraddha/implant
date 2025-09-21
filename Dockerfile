@@ -22,19 +22,21 @@ RUN npm run build
 # ----------------------------
 # Stage 3: Final Image
 # ----------------------------
-FROM openjdk:17-jdk-slim
+FROM node:18-bullseye AS final
 WORKDIR /app
 
-# Backend
+# Install JDK
+RUN apt-get update && apt-get install -y openjdk-17-jdk && rm -rf /var/lib/apt/lists/*
+
+# Copy backend
 COPY --from=backend-build /app/build/libs/myapp.jar myapp.jar
 
-# Frontend
+# Copy frontend
 COPY --from=frontend-build /app/build /app/frontend
 
 # Expose ports
 EXPOSE 3000 8080
 
-# Start both backend and frontend
-# Frontend on 3000 using serve
+# Start backend and frontend
 RUN npm install -g serve
 CMD ["sh", "-c", "java -jar myapp.jar & serve -s /app/frontend -l 3000"]
