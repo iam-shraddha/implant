@@ -30,11 +30,12 @@ COPY --from=backend-build /backend/build/libs/*.jar myapp.jar
 
 EXPOSE 8080
 
-# Do NOT hardcode passwords here—pass them at runtime or via secrets manager.
-# Example runtime usage:
-# docker run -e SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/implant \
-#            -e SPRING_DATASOURCE_USERNAME=root \
-#            -e SPRING_DATASOURCE_PASSWORD=Hyperminds@2025 \
-#            -p 8080:8080 implant-app
+
+# MySQL connection settings
+ENV SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/implant?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC \
+    SPRING_DATASOURCE_USERNAME=root \
+    SPRING_DATASOURCE_PASSWORD=Hyperminds@2025 \
+    SERVER_ADDRESS=0.0.0.0
+
 
 ENTRYPOINT ["java", "-jar", "myapp.jar"]
