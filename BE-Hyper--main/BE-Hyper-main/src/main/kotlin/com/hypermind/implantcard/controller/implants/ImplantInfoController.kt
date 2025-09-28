@@ -19,6 +19,7 @@ class ImplantInfoController(private val implantInfoService: ImplantInfoService) 
 
     @GetMapping("/getImplantInfoByCompany")
     fun getImplantInfoByCompany(): List<ImplantInfo> {
-        return implantInfoService.getImplantInfoByCompanyName("DePuy JNJ")
+        // Removed J&J filter as per feedback 5 - now shows all implants from DB
+        return implantInfoService.getAllImplantInfo()
     }
 }
